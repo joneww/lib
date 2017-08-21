@@ -178,7 +178,6 @@ def write_coords_inxml_asap(coords, file, tile_size, group_id):
 
     group_num = np.shape(coords)[0]
     if(group_id != None):
-        print(",,,,")
         group_id_start = group_id
         group_id_end = group_id + 1
     else:
