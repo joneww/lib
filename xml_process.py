@@ -13,6 +13,7 @@ import string
 from xml.dom import minidom
 import numpy as np
 
+
 #########################################################################
 #func name:modify_xml_encode
 #func description:this function is aimed for modify xml encode from gb2312
