@@ -12,7 +12,10 @@ import xml.etree.ElementTree as ET
 import string
 from xml.dom import minidom
 import numpy as np
-
+import json
+import log
+import logging
+logger = logging.getLogger("lib_logger")
 
 #########################################################################
 #func name:modify_xml_encode
@@ -113,7 +116,7 @@ def parse_kfb_xml(file, group_name):
 #########################################################################
 #func name:write_coords_inxml_kfb
 #func description:write coords in kfb xml format,region info and current
-#                 scale is fixed,use ellipse,and 20X
+#                 scale is fixed,use ellipse,and 20X,name(group name) is not take into consideration
 #date:20170821
 #########################################################################
 def write_coords_inxml_kfb(coords, file, tile_size):
@@ -170,7 +173,7 @@ def write_coords_inxml_asap(coords, file, tile_size, group_id):
     :param coords:top left corner coordinate of a rectangle with multi-group
     :param file:the out xml file path
     :param tile_size:the rectangle's size
-    :param group_id:id:the specific group wante to write,None:write the all groups
+    :param group_id:id:the specific group wante to write,None:write the all groups,coord should be separated in the list
     :return:None
     '''
     root = ET.Element("ASAP_Annotations")
@@ -208,15 +211,101 @@ def write_coords_inxml_asap(coords, file, tile_size, group_id):
     f.write(prettify(rough_string))
     f.close()
 
+#########################################################################
+#func name:parse_kfbweb_json
+#func description:parse the annotation json file of kfb web system
+#json file structure:[{},{},{}],list structure,list include object structure
+#list[value1,value2]
+#object{"key":"value","key":"value"}
+#kfb web system's json annotation file structure :
+#[{annotation1},{annotation2},{annotation3}]
+#{"points":XX,"imageId":XX,"guid":XX,"name":XX,"imageindex":XX,"isAllShow":XX,\
+#"description":XX,"scale":XX,"width":XX,"type":XX,"fontUnderLine":XX,"fontSize":XX,\
+#"fontFamily":XX,"fontItalic":XX,"fontBold":XX,"visible":XX,"color":XX,\
+#"measurement":XX,"radius":XX,"arcLength":XX,"angle":XX,"region":XX}
+#date:20170904
+#########################################################################
+def parse_kfb_json(file, group_name):
+    '''
+
+    :param file: the annotation file of the kfb web system,which is a json file
+    :param group_name:all group name, use for find the group name id
+    :return:annos_of_groups:all cor_regions of each group
+    '''
+    #init group name and group num
+    max_group_num = len(group_name)
+    annos_of_groups = [[] for i in range(max_group_num)]
+
+    #open json and parse json,structure like a list include some dictionary structure
+    json_str = open(file,"r").read()
+    parsed_json = json.loads(json_str)
+    anno_num = len(parsed_json)
+
+    #parse each annotation, only pay attention to groupname and region
+    for i in range(0,anno_num):
+        anno = parsed_json[i]
+        g_name = anno["description"]
+        x1 = anno["region"]['x']
+        y1 = anno["region"]['y']
+        h = anno["region"]['height']
+        w = anno["region"]['width']
+        x2 = x1 + w
+        y2 = y1 + h
+        cor_region = [(x1,y1),(x2,y2)]
+        g_name_num = group_name.index(g_name.lower())
+        annos_of_groups[g_name_num].append(cor_region)
+    return annos_of_groups
+
+#########################################################################
+#func name:write_coords_injson_kfb
+#func description:write the annotation into json file of kfb web system
+#strucrure:[{"":"","":""},{}]
+#date:20170905
+# #########################################################################
+def write_coords_injson_kfb(coords, file, tile_size,group_name):
+    '''
+
+    :param coords:
+    :param file:
+    :param tile_size:
+    :return:
+    '''
+    group_num = np.shape(coords)[0]
+    logger.debug("%s"%group_num)
+    json_str = '['
+    for i in range(0,group_num):
+        g_name = group_name[i]
+        g_anno = coords[:][i]
+        logger.debug("%s" % g_anno)
+        g_anno_num = len(g_anno)
+        logger.debug("%s" % g_anno_num)
+        for j in range(0, g_anno_num):
+            coord = g_anno[j]
+            logger.debug("%s"%coord)
+            anno_str = '{"points":[],"imageId":-1,"guid":"e7b4abca-8ef7-11e7-98ac-0cc47ae26241",' \
+                         '"name":"%s","imageindex":"1","isAllShow":true,"description":"","scale":1,' \
+                         '"width":"2","type":"Rectangle","fontUnderLine":false,"fontSize":11,' \
+                         '"fontFamily":"Microsoft Sans Serif","fontItalic":false,"fontBold":false,' \
+                         '"visible":true,"color":4294901760,"measurement":false,"radius":0,"arcLength":0,' \
+                         '"angle":0,"region":{"x":%d,"y":%d,"width":%d,"height":%d}},'%(g_name, coord[0], coord[1], tile_size, tile_size)
+            json_str = json_str + anno_str
+        json_str = json_str + ']'
+        f = open(file, "w")
+        f.write(str(json_str))
+        f.close()
+
 
 ##############################test lib func###########################################################
-if __name__ == "__main__":
-    file = "/home1/zengwx/2017-07-24_16_45_46.kfb.Ano"
-    group_name = ["asc-us", "lsil", "hsil", "scc", "ec", "mc"]
-    coords = [[[2345,4534],[7896,6757]],[[234,5678]]]
-    # modify_xml_encode(file)
-    # parse_kfb_xml(file, group_name)
-    write_coords_inxml_asap(coords, "kfb.Ano", 128, 2)
+# if __name__ == "__main__":
+    # file = "/home1/zengwx/2017-07-24_16_45_46.kfb.Ano"
+    # group_name = ["asc-us", "lsil", "hsil", "scc", "ec", "mc", "", "zwx"]
+    # coords = [[[2345,4534],[7896,6757]],[[234,5678]]]
+    # # modify_xml_encode(file)
+    # # parse_kfb_xml(file, group_name)
+    # write_coords_inxml_asap(coords, "kfb.Ano", 128, None)
+    # write_coords_injson_kfb(coords, "kfb.json", 128, group_name)
+    # file = "./test.json"
+    # parse_kfb_json(file, group_name)
 
 
 

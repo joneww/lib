@@ -36,8 +36,8 @@ class my_log:
         file_handler.setFormatter(file_formatter)
         file_handler.setLevel(logging.DEBUG)
 
-        #get a logger inherit root,root logger don't need any handle, if add handle to root logger, log will be processed
-        #by child logger and root logger both
+        #get a logger inherit root,root logger don't need any handle, if add handle to root logger, log will be both processed
+        #by child logger and root logger
         #NOTSET is not the lowest level,but is the default level WARNING
         #the logger level is the first level, the handle level is the second level
         logger = logging.getLogger("lib_logger")
