@@ -252,8 +252,13 @@ def parse_kfb_json(file, group_name):
         x2 = x1 + w
         y2 = y1 + h
         cor_region = [(x1,y1),(x2,y2)]
-        g_name_num = group_name.index(g_name.lower())
-        annos_of_groups[g_name_num].append(cor_region)
+        if g_name.lower() in group_name:
+            g_name_num = group_name.index(g_name.lower())
+            annos_of_groups[g_name_num].append(cor_region)
+        else:
+            print(file)
+            print(g_name)
+            print("description error")
     return annos_of_groups
 
 #########################################################################
@@ -293,6 +298,71 @@ def write_coords_injson_kfb(coords, file, tile_size,group_name):
         f = open(file, "w")
         f.write(str(json_str))
         f.close()
+
+#########################################################################
+# func name:write_object_in_xml
+# func description:write the object into xml,for object detection
+# strucrure:[ [[(),()], [(),()]], [......] ]
+# date:20171114
+# #########################################################################
+def write_object_in_xml(coords, file, group_name, path):
+    group_max_id = len(group_name)
+    #write head
+    filename = path.split('/')[-1]
+    folder = filename[0:14]
+
+    root = ET.Element("annotations",)
+    ET.SubElement(root, "folder").text=folder
+    ET.SubElement(root, "filename").text=filename
+    ET.SubElement(root, "path").text=path
+
+    source = ET.SubElement(root, "source")
+    ET.SubElement(source, "database").text="Unknown"
+
+    size = ET.SubElement(root, "size")
+    ET.SubElement(size, "width").text='1024'
+    ET.SubElement(size, "height").text='600'
+    ET.SubElement(size, "depth").text='3'
+
+    ET.SubElement(root, "segmented").text='0'
+    group_none_flag= 1
+
+    #write object
+    for group_id in range(group_max_id):
+        group_cor = coords[group_id]
+        if(len(group_cor) == 0):
+            continue
+        group_none_flag = 0
+        for object_cor in group_cor:
+            print("object_cor:%s"%object_cor)
+            object = ET.SubElement(root, "object")
+            ET.SubElement(object, "name").text=group_name[group_id]
+            ET.SubElement(object, "pose").text="Unspecified"
+            ET.SubElement(object, "truncated").text='0'
+            ET.SubElement(object, "difficult").text='0'
+            box = ET.SubElement(object, "bndbox")
+            xmin = ET.SubElement(box, "xmin")
+            xmin.text=str(int(object_cor[0][0]))
+            ymin = ET.SubElement(box, "ymin")
+            ymin.text=str(int(object_cor[0][1]))
+            xmax = ET.SubElement(box, "xmax")
+            xmax.text=str(int(object_cor[1][0]))
+            ymax =ET.SubElement(box, "ymax")
+            ymax.text=str(int(object_cor[1][1]))
+
+    if(not group_none_flag):
+        rough_string = ET.tostring(root, 'utf-8')
+        f = open(file, "w")
+        f.write(prettify(rough_string))
+        f.close()
+
+
+
+# def pretty_kfb_json(file1, file2):
+#     json_str = open(file1, "r").read()
+#     f = open(file2, "w")
+#     f.write(prettify(json_str))
+#     f.close()
 
 
 ##############################test lib func###########################################################
